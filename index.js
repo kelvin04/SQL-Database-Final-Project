@@ -505,7 +505,26 @@ app.put('/adminEditProduct/:id', (req,res) => {
 })
 
 
-// ================================================ Cart ===============================================================
+// =========================================== Admin Transaction =====================================================================
+app.get('/admintransaction', (req,res) => {
+    var sql = `select * from transaction;`
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+app.get('/admintransdetail/:id', (req,res) => {
+    const { id } = req.params
+    var sql = `select * from transdetail where idTransaction = '${id}';`;
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+
+// ================================================ Cart =============================================================================
 app.get('/cart/:username', (req,res) => {
     var sql = `select * from cart where username = '${req.params.username}';`;
     console.log(req.params.username)
@@ -591,11 +610,12 @@ app.post('/checkout', (req,res) => {
     var sql = `insert into transaction set ?;`;
     conn.query(sql, data, (err,results) => {
         if (err) throw err;
-        var sql1 = `select (select max(idTransaction) from transaction where username = 'a') as idTransaction,
+        var sql1 = `select (select max(idTransaction) from transaction where username = '${username}') as idTransaction,
                     ProductName, Image1, SalePrice, quantity from cart where username = '${username}';;`
         conn.query(sql1, (err1,results1) => {
             if (err1) throw err1;
             console.log(results1)
+
             var sql2 = `insert into transdetail (idTransaction, ProductName, Image1, SalePrice, quantity) values ?;`;
             var values = []
             results1.map(data => {
@@ -605,6 +625,12 @@ app.post('/checkout', (req,res) => {
             conn.query(sql2, [values], (err2,results2) => {
                 if (err2) throw err2;
                 console.log(results2);
+
+                var sql3 = `delete from cart where username = '${username}';`;
+                conn.query(sql3, (err3,results3) => {
+                    if (err3) throw err3;
+                    res.send(results3);
+                })
             })
         })
     })
