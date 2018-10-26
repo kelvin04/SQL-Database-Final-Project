@@ -20,15 +20,28 @@ const conn = mysql.createConnection({
     port: 3306
 })
 
+
+// ================================================ Login & Register =======================================================================
 app.get('/login', (req, res) => {
-    const {email, password} = req.query;
+    const {username, password} = req.query;
     var data = {
-        email: email,
+        username: username,
         password: password
     };
+    var sql = `select * from userlist where username = '${username}' and password = '${password}'`;
+    conn.query(sql, data, (err, results) => {
+        if(err) throw err;
+        res.send(results);
+        console.log(data)
+    })
+})
 
-    var sql = `select * from userlist where email = '${email}' and password = '${password}'`;
-    
+app.get('/keeplogin', (req, res) => {
+    const { username } = req.query;
+    var data = {
+        username: username,
+    };
+    var sql = `select * from userlist where username = '${username}';`;
     conn.query(sql, data, (err, results) => {
         if(err) throw err;
         res.send(results);
@@ -43,15 +56,26 @@ app.post('/register', (req, res) => {
         email: email,
         password: password
     };
-    var sql = 'INSERT INTO userlist SET ?'
-
-    conn.query(sql, data, (err, results) => {
-        if(err) throw err;
+    var sql = `select * from userlist where username = '${username}';`;
+    conn.query(sql, data, (err,results) => {
+        if (err) throw err;
         console.log(results);
-        res.send(data);
+        if(results.length > 0) {
+            res.send("Username already exists")
+        }
+        else {
+            var sql2 = 'INSERT INTO userlist SET ?'
+            conn.query(sql2, data, (err2, results2) => {
+                if(err2) throw err2;
+                console.log(results2);
+                res.send(data);
+            })
+        }
     })
 });
 
+
+// ================================================ Product List =======================================================================
 app.get('/allProducts', (req, res) => {
     // var sql = `select * from products where Brand like 'Apple';`;
     var sql = 'select * from products;';
@@ -336,14 +360,305 @@ app.get('/sortgamingpricedesc' , (req,res) => {
 })
 
 
-// ========================== Search Product ==========================================================================
+// ================================== Search Product ==========================================================================
 app.get('/search', (req,res) => {
     var sql = `select * from products where ProductName like '%${req.query.ProductName}%';`;
     conn.query(sql, (err,results) => {
         if(err) throw err;
-        res.send( results )
+        res.send(results)
     })
 })
+
+
+// ======================================= Admin ===============================================================
+app.get('/admin', (req,res) => {
+    var sql = `select *, (quantity * SalePrice) as TotalPrice from cart;`;
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+app.get('/searchAdmin', (req,res) => {
+    const { ProductName } = req.query;
+    // var sql = `select *, (quantity * SalePrice) as TotalPrice from cart where username like '%${username}%' and ProductName like '%${ProductName}%';`;
+    var sql = `select * from products where ProductName like '%${ProductName}%';`;
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+app.get('/adminSortIdProduct', (req,res) => {
+    var sql = 'select * from products order by idProduct;';
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+app.get('/adminSortIdProductDesc', (req,res) => {
+    var sql = 'select * from products order by idProduct desc;';
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+app.get('/adminSortProductName', (req,res) => {
+    var sql = 'select * from products order by ProductName;';
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+app.get('/adminSortProductNameDesc', (req,res) => {
+    var sql = 'select * from products order by ProductName desc;';
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+app.get('/adminSortNormalPrice', (req,res) => {
+    var sql = 'select * from products order by NormalPrice;';
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+app.get('/adminSortNormalPriceDesc', (req,res) => {
+    var sql = 'select * from products order by NormalPrice desc;';
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+app.get('/adminSortPromoPrice', (req,res) => {
+    var sql = 'select * from products order by SalePrice + 0;';
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+app.get('/adminSortPromoPriceDesc', (req,res) => {
+    var sql = 'select * from products order by SalePrice + 0 desc;';
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
+// Contoh untuk admin page Total Price
+// app.get('/adminSortTotalPriceDesc', (req,res) => {
+//     var sql = 'select *, (quantity * SalePrice) as TotalPrice from cart order by TotalPrice desc;';
+//     conn.query(sql, (err,results) => {
+//         if (err) throw err;
+//         res.send(results)
+//     })
+// })
+
+
+// =========================================== Admin Add/Edit/Delete Product ==================================================================================
+app.post('/adminAddProduct', (req,res) => {
+    const { Image1, Image2, Image3, Brand, ProductName, Description, Features1, Features2, Features3, Features4, NormalPrice, SalePrice } = req.body;
+    var data = { Image1, Image2, Image3, Brand, ProductName, Description, Features1, Features2, Features3, Features4, NormalPrice, SalePrice }
+    var sql = 'INSERT INTO products SET ?';
+    conn.query(sql, data, (err, results) => {
+        if (err) throw err;
+        var sql1 = `select * from products`;
+        conn.query(sql1, (err1, results1) => {
+            if (err1) throw err1;
+            res.send(results1);
+        })
+    })
+})
+
+app.delete('/adminDeleteProduct/:id', (req,res) => {
+    var sql = `delete from products where idProduct = '${req.params.id}';`;
+    conn.query(sql, (err, results) => {
+        if(err) throw err;
+        var sql1 = `select * from products;`;
+        conn.query(sql1, (err1, results1) => {
+            if(err1) throw err1;
+            res.send(results1);
+        })
+    })
+});
+
+app.put('/adminEditProduct/:id', (req,res) => {
+    const { Image1, Image2, Image3, Brand, ProductName, Description, Features1, Features2, Features3, Features4, NormalPrice, SalePrice } = req.body;
+    var data = { Image1, Image2, Image3, Brand, ProductName, Description, Features1, Features2, Features3, Features4, NormalPrice, SalePrice }
+    var sql = `update products set ? where idProduct = '${req.params.id}';`;
+    conn.query(sql, data, (err, results) => {
+        if(err) throw err;
+        var sql1 = `select * from products;`;
+        conn.query(sql1, (err1, results1) => {
+            if(err1) throw err1;
+            res.send(results1);
+        })
+    })
+})
+
+
+// ================================================ Cart ===============================================================
+app.get('/cart/:username', (req,res) => {
+    var sql = `select * from cart where username = '${req.params.username}';`;
+    console.log(req.params.username)
+    conn.query(sql, (err,results) => {
+        
+        if (err) throw err;
+        res.send(results);
+    })
+});
+
+app.post('/cart', (req,res) => {
+    const { idProduct, ProductName, SalePrice, Image1, quantity, username } = req.body;
+    var data = {
+        idProduct: idProduct,
+        ProductName: ProductName,
+        SalePrice: SalePrice,
+        Image1: Image1,
+        quantity: quantity,
+        username: username
+    }
+    var sql2 = `select * from cart where username = '${username}' and idProduct = '${idProduct}';;`;
+    conn.query(sql2, (err2, results2) => {
+        if (err2) throw err2;
+        if(results2 != "") {
+            var sql3 = `update cart set quantity = quantity + ${quantity} where username = '${username}' and idProduct = '${idProduct}';`;
+            conn.query(sql3, (err3, results3) => {
+                if (err3) throw err3;
+                var sql4 = `select * from cart;`;
+                conn.query(sql4, (err4, results4) => {
+                    if(err4) throw err4;
+                    res.send(results4);
+                })
+            })
+        }
+        else {
+            var sql = 'INSERT INTO cart SET ?;';
+            conn.query(sql, data, (err,results) => {
+                if (err) throw err;
+                var sql1 = `select * from cart;`;
+                conn.query(sql1, (err1, results1) => {
+                    if(err1) throw err1;
+                    res.send(results1);
+                })
+            })
+        }
+    })
+});
+
+app.put('/cart/:id', (req,res) => {
+    const { quantity } = req.body;
+    var data = { quantity: quantity }
+    var sql = `update cart set ? where idCart = '${req.params.id}';`
+    conn.query(sql, data, (err, results) => {
+        if(err) throw err;
+        res.send(results);
+        // var sql1 = `select * from cart where username = '${req.params.username}';`;
+        // conn.query(sql1, (err1, results1) => {
+        //     if(err1) throw err1;
+        //     res.send(results1);
+        // })
+    })
+}); 
+
+app.delete('/cart/:id', (req,res) => {
+    var sql = `delete from cart where idCart = '${req.params.id}';`
+    conn.query(sql, (err, results) => {
+        if(err) throw err;
+        res.send(results);
+        // var sql1 = `select * from products where ProductName like '%${req.query.ProductName}%';`;
+        // conn.query(sql1, (err1, results1) => {
+        //     if(err1) throw err1;
+        //     console.log(req.query.ProductName);
+        //     console.log(results1);
+        //     res.send(results1);
+        // })
+    })
+});
+
+
+app.post('/checkout', (req,res) => {
+    const { username, TotalPrice } = req.body;
+    var data = { username, TotalPrice }
+    var sql = `insert into transaction set ?;`;
+    conn.query(sql, data, (err,results) => {
+        if (err) throw err;
+        var sql1 = `select (select max(idTransaction) from transaction where username = 'a') as idTransaction,
+                    ProductName, Image1, SalePrice, quantity from cart where username = '${username}';;`
+        conn.query(sql1, (err1,results1) => {
+            if (err1) throw err1;
+            console.log(results1)
+            var sql2 = `insert into transdetail (idTransaction, ProductName, Image1, SalePrice, quantity) values ?;`;
+            var values = []
+            results1.map(data => {
+                values.push([data.idTransaction ,data.ProductName, data.Image1, data.SalePrice, data.quantity])
+            })
+            console.log(values)
+            conn.query(sql2, [values], (err2,results2) => {
+                if (err2) throw err2;
+                console.log(results2);
+            })
+        })
+    })
+})
+
+// app.post('/checkout/:username', (req,res) => {
+//     const { username } = req.params
+//     var sql = `select username, (quantity * SalePrice) as TotalPrice from cart where username = '${username}';`;
+//     conn.query(sql, (err,results) => {
+//         if (err) throw err;
+//         console.log(results)
+//         console.log(results[1].TotalPrice)
+//         var values = []
+//         results.map(data => {
+//             values.push([data.username,data.TotalPrice])
+//         })
+//         var sql1 = `insert into transaction (username, TotalPrice) values ?;`
+//         conn.query(sql1, [values], (err1,results1) => {
+//             if (err1) throw err1;
+//             console.log(results1)
+            
+            // var sql2 = `select Image1, ProductName, SalePrice, quantity from cart where username = '${username}';`;
+            // conn.query(sql2, (err2, results2) => {
+            //     if (err2) throw err2;
+            //     console.log(results2)
+
+            //     // var sql3 = `SET @last_id_in_transaction = LAST_INSERT_ID();`;
+            //     // conn.query(sql3, (err3, results3) => {
+            //     //     if (err3) throw err3;
+            //     //     var values1 = []
+            //     //     results2.map(data => {
+            //     //         values1.push([data.Image1, data.ProductName, data.SalePrice, data.quantity])
+            //     //     })
+            //     //     var sql4 = `insert into transdetail (idTransDetail, Image1, ProductName, SalePrice, quantity)
+            //     //                 values (@last_id_in_transaction, ?);`
+            //     //     conn.query(sql4, [values1], (err4, results4) => {
+            //     //         if (err4) throw err4;
+            //     //         console.log(results4)
+            //     //     })
+            //     // })
+            // })
+//         })
+//     })
+// });
+
+
+// ==================================== Notification Cart ==================================================================
+// app.get('/notification/:username', (req,res) => {
+//     var sql = `select username, count(*) as CartQuantity from cart where username = '${req.params.username}';`;
+//     conn.query(sql, (err,results) => {
+//         if (err) throw err;
+//         res.send(results);
+//     })
+// });
 
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));
