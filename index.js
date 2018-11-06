@@ -115,6 +115,15 @@ app.get('/products/:id', (req, res) => {
     conn.query(sql, data, (err, results) => {
         if (err) throw err;
         res.send(results);
+        console.log(results)
+    })
+})
+
+app.get('/filternewproducts' , (req,res) => {
+    var sql = `select * from products where NormalPrice = 0;`;
+    conn.query(sql, (err,results) => {
+        if(err) throw err;
+        res.send( results )
     })
 })
 
@@ -184,6 +193,8 @@ app.get('/sortallpricedesc' , (req,res) => {
         res.send( results )
     })
 })
+
+
 
 
 // ============================================= Sort Smartphone List ===========================================================================
@@ -514,6 +525,15 @@ app.get('/admintransaction', (req,res) => {
     })
 })
 
+app.get('/searchTransDetail', (req,res) => {
+    const { username } = req.query;
+    var sql = `select * from transaction where username = '${username}';`;
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results)
+    })
+})
+
 app.get('/admintransdetail/:id', (req,res) => {
     const { id } = req.params
     var sql = `select * from transdetail where idTransaction = '${id}';`;
@@ -636,48 +656,29 @@ app.post('/checkout', (req,res) => {
     })
 })
 
-// app.post('/checkout/:username', (req,res) => {
-//     const { username } = req.params
-//     var sql = `select username, (quantity * SalePrice) as TotalPrice from cart where username = '${username}';`;
-//     conn.query(sql, (err,results) => {
-//         if (err) throw err;
-//         console.log(results)
-//         console.log(results[1].TotalPrice)
-//         var values = []
-//         results.map(data => {
-//             values.push([data.username,data.TotalPrice])
-//         })
-//         var sql1 = `insert into transaction (username, TotalPrice) values ?;`
-//         conn.query(sql1, [values], (err1,results1) => {
-//             if (err1) throw err1;
-//             console.log(results1)
-            
-            // var sql2 = `select Image1, ProductName, SalePrice, quantity from cart where username = '${username}';`;
-            // conn.query(sql2, (err2, results2) => {
-            //     if (err2) throw err2;
-            //     console.log(results2)
 
-            //     // var sql3 = `SET @last_id_in_transaction = LAST_INSERT_ID();`;
-            //     // conn.query(sql3, (err3, results3) => {
-            //     //     if (err3) throw err3;
-            //     //     var values1 = []
-            //     //     results2.map(data => {
-            //     //         values1.push([data.Image1, data.ProductName, data.SalePrice, data.quantity])
-            //     //     })
-            //     //     var sql4 = `insert into transdetail (idTransDetail, Image1, ProductName, SalePrice, quantity)
-            //     //                 values (@last_id_in_transaction, ?);`
-            //     //     conn.query(sql4, [values1], (err4, results4) => {
-            //     //         if (err4) throw err4;
-            //     //         console.log(results4)
-            //     //     })
-            //     // })
-            // })
-//         })
-//     })
-// });
+// =========================================== User Transaction History ==========================================================
+app.get('/userhistory/:username', (req,res) => {
+    var sql = `select (@cnt := @cnt + 1) AS TransactionID, idTransaction, TotalPrice
+                from transaction JOIN (SELECT @cnt := 0) AS dummy
+                where username = '${req.params.username}';`
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+app.get('/userhistorydetail/:id', (req,res) => {
+    const { id } = req.params
+    var sql = `select * from transdetail where idTransaction = '${id}';`;
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
 
 
-// ==================================== Notification Cart ==================================================================
+// =============================================== Notification Cart ==================================================================
 // app.get('/notification/:username', (req,res) => {
 //     var sql = `select username, count(*) as CartQuantity from cart where username = '${req.params.username}';`;
 //     conn.query(sql, (err,results) => {
