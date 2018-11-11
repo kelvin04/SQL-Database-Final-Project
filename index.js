@@ -77,8 +77,15 @@ app.post('/register', (req, res) => {
 
 // ================================================ Product List =======================================================================
 app.get('/allProducts', (req, res) => {
-    // var sql = `select * from products where Brand like 'Apple';`;
     var sql = 'select * from products;';
+    conn.query(sql, (err, results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+app.get('/hotlist', (req, res) => {
+    var sql = 'select * from products where NormalPrice = 0;';
     conn.query(sql, (err, results) => {
         if (err) throw err;
         res.send(results);
@@ -101,7 +108,7 @@ app.get('/allLaptop', (req, res) => {
     })
 })
 
-app.get('/allGaming', (req, res) => {
+app.get('/allGameConsoles', (req, res) => {
     var sql = `select * from products where CategoryID like '3';`;
     conn.query(sql, (err, results) => {
         if (err) throw err;
@@ -109,10 +116,10 @@ app.get('/allGaming', (req, res) => {
     })
 })
 
-app.get('/products/:id', (req, res) => {
-    var data = req.params.id
-    var sql = `select * from products join categories on CategoryID = idCategories where idProduct = '${data}';`;
-    conn.query(sql, data, (err, results) => {
+app.get('/productsdetail/:id', (req, res) => {
+    var id = req.params.id
+    var sql = `select * from products join categories on CategoryID = idCategories where idProduct = '${id}';`;
+    conn.query(sql, (err, results) => {
         if (err) throw err;
         res.send(results);
         console.log(results)
@@ -366,17 +373,25 @@ app.get('/sortgamingpricedesc' , (req,res) => {
     }
     conn.query(sql, (err,results) => {
         if(err) throw err;
-        res.send( results )
+        res.send(results)
     })
 })
 
 
 // ================================== Search Product ==========================================================================
-app.get('/search', (req,res) => {
-    var sql = `select * from products where ProductName like '%${req.query.ProductName}%';`;
+// app.get('/search', (req,res) => {
+//     var sql = `select * from products where ProductName like '%${req.query.ProductName}%';`;
+//     conn.query(sql, (err,results) => {
+//         if(err) throw err;
+//         res.send(results)
+//     })
+// })
+
+app.get('/searchresults/:string', (req,res) => {
+    var sql = `select * from products where ProductName like '%${req.params.string}%';`;
     conn.query(sql, (err,results) => {
         if(err) throw err;
-        res.send(results)
+        res.send(results);
     })
 })
 
@@ -530,8 +545,62 @@ app.get('/searchTransDetail', (req,res) => {
     var sql = `select * from transaction where username = '${username}';`;
     conn.query(sql, (err,results) => {
         if (err) throw err;
-        res.send(results)
+        res.send(results);
     })
+})
+
+app.get('/courierfilter', (req,res) => {
+    const { Courier, username } = req.query;
+    if(username === "") {
+        var sql = `select * from transaction where Courier = '${Courier}';`;
+        conn.query(sql, (err,results) => {
+            if (err) throw err;
+            res.send(results);
+        })
+    }
+    else {
+        var sql = `select * from transaction where Courier = '${Courier}' and username = '${username}';`;
+        conn.query(sql, (err,results) => {
+            if (err) throw err;
+            res.send(results);
+        })
+    }
+})
+
+app.get('/adminSortTotalPrice', (req,res) => {
+    const { username } = req.query;
+    if(username === "") {
+        var sql = `select * from transaction order by TotalPrice;`;
+        conn.query(sql, (err,results) => {
+            if (err) throw err;
+            res.send(results);
+        })
+    }
+    else {
+        var sql = `select * from transaction where username = '${username}'order by TotalPrice;`;
+        conn.query(sql, (err,results) => {
+            if (err) throw err;
+            res.send(results);
+        })
+    }
+})
+
+app.get('/adminSortTotalPriceDesc', (req,res) => {
+    const { username } = req.query;
+    if(username === "") {
+        var sql = `select * from transaction order by TotalPrice DESC;`;
+        conn.query(sql, (err,results) => {
+            if (err) throw err;
+            res.send(results);
+        })
+    }
+    else {
+        var sql = `select * from transaction where username = '${username}'order by TotalPrice DESC;`;
+        conn.query(sql, (err,results) => {
+            if (err) throw err;
+            res.send(results);
+        })
+    }
 })
 
 app.get('/admintransdetail/:id', (req,res) => {
@@ -594,41 +663,40 @@ app.post('/cart', (req,res) => {
 });
 
 app.put('/cart/:id', (req,res) => {
-    const { quantity } = req.body;
+    const { quantity, username } = req.body;
     var data = { quantity: quantity }
     var sql = `update cart set ? where idCart = '${req.params.id}';`
     conn.query(sql, data, (err, results) => {
         if(err) throw err;
-        res.send(results);
-        // var sql1 = `select * from cart where username = '${req.params.username}';`;
-        // conn.query(sql1, (err1, results1) => {
-        //     if(err1) throw err1;
-        //     res.send(results1);
-        // })
+        var sql1 = `select * from cart where username = '${username}';`;
+        conn.query(sql1, (err1, results1) => {
+            if(err1) throw err1;
+            res.send(results1);
+        })
     })
 }); 
 
 app.delete('/cart/:id', (req,res) => {
+    const { username } = req.body;
     var sql = `delete from cart where idCart = '${req.params.id}';`
     conn.query(sql, (err, results) => {
         if(err) throw err;
-        res.send(results);
-        // var sql1 = `select * from products where ProductName like '%${req.query.ProductName}%';`;
-        // conn.query(sql1, (err1, results1) => {
-        //     if(err1) throw err1;
-        //     console.log(req.query.ProductName);
-        //     console.log(results1);
-        //     res.send(results1);
-        // })
+        var sql1 = `select * from cart where username = '${username}';`;
+        conn.query(sql1, (err1, results1) => {
+            if(err1) throw err1;
+            res.send(results1);
+        })
     })
 });
 
 
 app.post('/checkout', (req,res) => {
-    const { username, TotalPrice } = req.body;
-    var data = { username, TotalPrice }
-    var sql = `insert into transaction set ?;`;
-    conn.query(sql, data, (err,results) => {
+    const { username, Address, Courier, TotalPrice } = req.body;
+    // var data = { username, Address, Courier, TotalPrice };
+    var sql = `insert into transaction 
+                (username, Date, Time, Address, Courier, TotalPrice)        
+                values ('${username}', (select CURDATE()), (select CURTIME()),'${Address}', '${Courier}', ${TotalPrice});`;
+    conn.query(sql, (err,results) => {
         if (err) throw err;
         var sql1 = `select (select max(idTransaction) from transaction where username = '${username}') as idTransaction,
                     ProductName, Image1, SalePrice, quantity from cart where username = '${username}';;`
@@ -659,7 +727,7 @@ app.post('/checkout', (req,res) => {
 
 // =========================================== User Transaction History ==========================================================
 app.get('/userhistory/:username', (req,res) => {
-    var sql = `select (@cnt := @cnt + 1) AS TransactionID, idTransaction, TotalPrice
+    var sql = `select (@cnt := @cnt + 1) AS TransactionID, idTransaction, Date, Time, Address, Courier, TotalPrice
                 from transaction JOIN (SELECT @cnt := 0) AS dummy
                 where username = '${req.params.username}';`
     conn.query(sql, (err,results) => {
@@ -684,6 +752,7 @@ app.get('/userhistorydetail/:id', (req,res) => {
 //     conn.query(sql, (err,results) => {
 //         if (err) throw err;
 //         res.send(results);
+//         console.log(results)
 //     })
 // });
 
