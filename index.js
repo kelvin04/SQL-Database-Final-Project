@@ -691,11 +691,11 @@ app.delete('/cart/:id', (req,res) => {
 
 
 app.post('/checkout', (req,res) => {
-    const { username, Address, Courier, TotalPrice } = req.body;
+    const { username, Address, Courier, TotalPrice, Status } = req.body;
     // var data = { username, Address, Courier, TotalPrice };
     var sql = `insert into transaction 
-                (username, Date, Time, Address, Courier, TotalPrice)        
-                values ('${username}', (select CURDATE()), (select CURTIME()),'${Address}', '${Courier}', ${TotalPrice});`;
+                (username, Date, Time, Address, Courier, TotalPrice, Status)        
+                values ('${username}', (select CURDATE()), (select CURTIME()),'${Address}', '${Courier}', ${TotalPrice}, '${Status}');`;
     conn.query(sql, (err,results) => {
         if (err) throw err;
         var sql1 = `select (select max(idTransaction) from transaction where username = '${username}') as idTransaction,
@@ -724,10 +724,18 @@ app.post('/checkout', (req,res) => {
     })
 })
 
+app.get('/payment/:username', (req,res) => {
+    var sql = `select * from transaction where username = '${req.params.username}' and Status = 'Waiting for Payment';`
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
 
-// =========================================== User Transaction History ==========================================================
+
+// ========================================= User Profile & Transaction History ==========================================================
 app.get('/userhistory/:username', (req,res) => {
-    var sql = `select (@cnt := @cnt + 1) AS TransactionID, idTransaction, Date, Time, Address, Courier, TotalPrice
+    var sql = `select (@cnt := @cnt + 1) AS TransactionID, idTransaction, Date, Time, Address, Courier, TotalPrice, Status
                 from transaction JOIN (SELECT @cnt := 0) AS dummy
                 where username = '${req.params.username}';`
     conn.query(sql, (err,results) => {
@@ -742,6 +750,39 @@ app.get('/userhistorydetail/:id', (req,res) => {
     conn.query(sql, (err,results) => {
         if (err) throw err;
         res.send(results);
+    })
+})
+
+app.get('/statusPayment/:id', (req,res) => {
+    const { id } = req.params
+    var sql = `select * from transaction where idTransaction = '${id}';`;
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+
+app.get('/userprofile/:username', (req,res) => {
+    var sql = `select * from userlist where username = '${req.params.username}';`
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+app.put('/updateprofile/:idUser', (req,res) => {
+    const { username, address } = req.body;
+    var data = { address }
+    var sql = `update userlist set ? where id = ${req.params.idUser};`;
+    conn.query(sql, data, (err,results) => {
+        if (err) throw err;
+        
+        var sql1 = `select * from userlist where username = '${username}';`;
+        conn.query(sql1, (err1,results1) => {
+            if (err1) throw err1;
+            res.send(results1)
+        })
     })
 })
 
