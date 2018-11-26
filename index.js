@@ -1,6 +1,8 @@
 const express = require('express');
 var bodyParser = require('body-parser');
 const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
 const mysql = require('mysql');
 
 var app = express();
@@ -11,15 +13,42 @@ app.use(url);
 app.use(bodyParser.json());
 app.use(cors());
 
-
 const conn = mysql.createConnection({
     host: 'localhost',
     user: 'root',
     password: 'Masterof04',
     database: 'onetech',
     port: 3306
-})
+});
 
+const storeage = multer.diskStorage({
+    destination: '../public/Payment Slip Uploads',
+    filename: function(req, file, cb) {
+        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+    }
+});
+
+const upload = multer({
+    storage: storeage,
+    // limits file size 2 MB
+    limits: { fileSize: 2000000 },
+    fileFilter : function(req, file, cb) {
+        chceckFileType(file, cb);
+    }  
+}).single('paymentSlip');
+
+chceckFileType = (file, cb) => {
+    const filetypes = /jpeg|jpg|png/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+
+    if(mimetype && extname) {
+        return cb(null, true);
+    }
+    else {
+        cb('Error: Images Only');
+    }
+}
 
 // ================================================ Login & Register =======================================================================
 app.get('/login', (req, res) => {
@@ -724,14 +753,6 @@ app.post('/checkout', (req,res) => {
     })
 })
 
-app.get('/payment/:username', (req,res) => {
-    var sql = `select * from transaction where username = '${req.params.username}' and Status = 'Waiting for Payment';`
-    conn.query(sql, (err,results) => {
-        if (err) throw err;
-        res.send(results);
-    })
-})
-
 
 // ========================================= User Profile & Transaction History ==========================================================
 app.get('/userhistory/:username', (req,res) => {
@@ -771,7 +792,7 @@ app.get('/userprofile/:username', (req,res) => {
     })
 })
 
-app.put('/updateprofile/:idUser', (req,res) => {
+app.put('/updateprofile/:idUser', (req, res) => {
     const { username, address } = req.body;
     var data = { address }
     var sql = `update userlist set ? where id = ${req.params.idUser};`;
@@ -786,6 +807,70 @@ app.put('/updateprofile/:idUser', (req,res) => {
     })
 })
 
+
+// ======================================== Payment ===============================================================
+app.get('/adminpayment:id', (req,res) => {
+    var sql = `select p.*, t.TotalPrice from payment p join transaction t 
+               on p.idTransaction = t.idTransaction  where p.idTransaction = ${req.params.id};`;
+    conn.query(sql, (err, results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+app.get('/payment/:username', (req,res) => {
+    var sql = `select * from transaction where username = '${req.params.username}' and Status = 'Waiting for Payment';`
+    conn.query(sql, (err,results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+app.put('/updatePaymentStatus/:id', (req, res) => {
+    const { username, Status } = req.body;
+    var data = { username, Status };
+    var sql = `update transaction set Status = '${Status}' where idTransaction = ${req.params.id};`;
+    conn.query(sql, data, (err, results) => {
+        if(err) throw err;
+        var sql1 = `select (@cnt := @cnt + 1) AS TransactionID, idTransaction, Date, Time, Address, Courier, TotalPrice, Status
+                    from transaction JOIN (SELECT @cnt := 0) AS dummy
+                    where username = '${username}';`;
+        conn.query(sql1, (err1, results1) => {
+            if(err1) throw err1;
+            res.send(results1);
+        })
+    })
+})
+
+app.post('/uploadPaymentData', (req, res) => {
+    const { idTransaction, Method, FromBankAccount, FromNumAccount, FromNameAccount, AccountDestination, AmountPaid } = req.body;
+    var data  = { idTransaction, Method, FromBankAccount, FromNumAccount, FromNameAccount, AccountDestination, AmountPaid }
+    var sql = 'insert into payment set ?';
+    conn.query(sql, data, (err, results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+app.post('/uploadPaymentImage', (req, res) => {
+    upload(req, res, (err) =>{
+        if(err) {
+            console.log(err);
+        }
+        else {
+            console.log(req.file);
+            res.send('test');
+            
+            var sql1 = `update payment a, 
+                        (select (select max(idPayment) from payment) as idPayment) b set PaymentSlip = '${req.file.filename}' 
+                        where a.idPayment = b.idPayment`;
+            conn.query(sql1, (err1, results1) => {
+                if (err1) throw err1;
+                console.log(results1)
+            })
+        }
+    })
+})
 
 // =============================================== Notification Cart ==================================================================
 // app.get('/notification/:username', (req,res) => {
