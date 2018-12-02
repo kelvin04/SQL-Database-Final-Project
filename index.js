@@ -79,9 +79,10 @@ app.get('/keeplogin', (req, res) => {
 })
 
 app.post('/register', (req, res) => {
-    const { username, email, password } = req.body;
+    const { username, fullname, email, password } = req.body;
     var data = {
         username: username,
+        fullname: fullname,
         email: email,
         password: password
     };
@@ -176,8 +177,11 @@ app.get('/filterbrand' , (req,res) => {
 // ============================================== Sort Product List ==============================================
 app.get('/sortallnameasc' , (req,res) => {
     const { namabrand } = req.query;
-    if(namabrand == "All Products") {
+    if(namabrand === "All Products") {
         var sql = `select * from products order by ProductName;`;
+    }
+    else if (namabrand === "New Products") {
+        var sql = `select * from products where NormalPrice = 0 order by ProductName;`;
     }
     else {
         var sql = `select * from products where Brand like '${namabrand}' order by ProductName;`;
@@ -193,6 +197,9 @@ app.get('/sortallnamedesc' , (req,res) => {
     if(namabrand == "All Products") {
         var sql = `select * from products order by ProductName DESC;`;
     }
+    else if (namabrand === "New Products") {
+        var sql = `select * from products where NormalPrice = 0 order by ProductName DESC;`;
+    }
     else {
         var sql = `select * from products where Brand like '${namabrand}' order by ProductName DESC;`;
     }
@@ -207,6 +214,9 @@ app.get('/sortallpriceasc' , (req,res) => {
     if(namabrand == "All Products") {
         var sql = `select * from products order by SalePrice + 0;`;
     }
+    else if (namabrand === "New Products") {
+        var sql = `select * from products where NormalPrice = 0 order by SalePrice + 0;`;
+    }
     else {
         var sql = `select * from products where Brand like '${namabrand}' order by SalePrice + 0;`;
     }
@@ -220,6 +230,9 @@ app.get('/sortallpricedesc' , (req,res) => {
     const { namabrand } = req.query;
     if(namabrand == "All Products") {
         var sql = `select * from products order by SalePrice + 0 DESC;`;
+    }
+    else if (namabrand === "New Products") {
+        var sql = `select * from products where NormalPrice = 0 order by SalePrice + 0 DESC;`;
     }
     else {
         var sql = `select * from products where Brand like '${namabrand}' order by SalePrice + 0 DESC;`;
@@ -809,18 +822,51 @@ app.put('/updateprofile/:idUser', (req, res) => {
 
 
 // ======================================== Payment ===============================================================
-app.get('/adminpayment:id', (req,res) => {
+app.get('/adminpayment/:id', (req, res) => {
     var sql = `select p.*, t.TotalPrice from payment p join transaction t 
-               on p.idTransaction = t.idTransaction  where p.idTransaction = ${req.params.id};`;
+               on p.idTransaction = t.idTransaction where p.idTransaction = ${req.params.id};`;
     conn.query(sql, (err, results) => {
         if (err) throw err;
         res.send(results);
     })
 })
 
+app.post('/addNewInvoice/:id', (req, res) => {
+    const { idTransaction, InvNumber } = req.body;
+    var data = { idTransaction, InvNumber }
+    var sql = `insert into invoice set ?;`;
+    conn.query(sql, data, (err, results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+app.get('/getInvoiceNumber/:id', (req, res) => {
+    var sql = `select i.*, t.Date, t.TotalPrice, t.Address, t.Courier, t.username from invoice i join transaction t 
+                on i.idTransaction = t.idTransaction where i.idTransaction = ${req.params.id};`;
+    conn.query(sql, (err, results) => {
+        if (err) throw err;
+        res.send(results);
+    })
+})
+
+app.put('/adminConfirmationPayment/:id', (req, res) => {
+    const { Status } = req.body;
+    var sql = `update transaction set Status = '${Status}' where idTransaction = ${req.params.id};`;
+    conn.query(sql, (err, results) => {
+        if (err) throw err;
+        
+        var sql1 = `select * from transaction;`;
+        conn.query(sql1, (err1, results1) => {
+            if (err1) throw err1;
+            res.send(results1);
+        })
+    })
+})
+
 app.get('/payment/:username', (req,res) => {
     var sql = `select * from transaction where username = '${req.params.username}' and Status = 'Waiting for Payment';`
-    conn.query(sql, (err,results) => {
+    conn.query(sql, (err, results) => {
         if (err) throw err;
         res.send(results);
     })
@@ -848,7 +894,7 @@ app.post('/uploadPaymentData', (req, res) => {
     var sql = 'insert into payment set ?';
     conn.query(sql, data, (err, results) => {
         if (err) throw err;
-        res.send(results);
+        res.send('Upload Success!');
     })
 })
 
