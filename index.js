@@ -21,21 +21,38 @@ const conn = mysql.createConnection({
     port: 3306
 });
 
-const storeage = multer.diskStorage({
+const storeagePayment = multer.diskStorage({
     destination: '../public/Payment Slip Uploads',
     filename: function(req, file, cb) {
         cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
     }
 });
 
+const storeageProfile = multer.diskStorage({
+    destination: '../public/Photo Profile',
+    filename: function(req, file, cb) {
+        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+    }
+});
+
 const upload = multer({
-    storage: storeage,
+    storage: storeagePayment,
     // limits file size 2 MB
     limits: { fileSize: 2000000 },
     fileFilter : function(req, file, cb) {
         chceckFileType(file, cb);
     }  
 }).single('paymentSlip');
+
+const uploadProfile = multer({
+    storage: storeageProfile,
+    // limits file size 2 MB
+    // limits: { fileSize: 2000000 },
+    fileFilter : function(req, file, cb) {
+        chceckFileType(file, cb);
+    }  
+}).single('userPhoto');
+
 
 chceckFileType = (file, cb) => {
     const filetypes = /jpeg|jpg|png/;
@@ -584,7 +601,7 @@ app.get('/admintransaction', (req,res) => {
 
 app.get('/searchTransDetail', (req,res) => {
     const { username } = req.query;
-    var sql = `select * from transaction where username = '${username}';`;
+    var sql = `select * from transaction where username like '%${username}%';`;
     conn.query(sql, (err,results) => {
         if (err) throw err;
         res.send(results);
@@ -601,7 +618,7 @@ app.get('/courierfilter', (req,res) => {
         })
     }
     else {
-        var sql = `select * from transaction where Courier = '${Courier}' and username = '${username}';`;
+        var sql = `select * from transaction where Courier = '${Courier}' and username like '%${username}%';`;
         conn.query(sql, (err,results) => {
             if (err) throw err;
             res.send(results);
@@ -619,7 +636,7 @@ app.get('/adminSortTotalPrice', (req,res) => {
         })
     }
     else {
-        var sql = `select * from transaction where username = '${username}'order by TotalPrice;`;
+        var sql = `select * from transaction where username like '%${username}%' order by TotalPrice;`;
         conn.query(sql, (err,results) => {
             if (err) throw err;
             res.send(results);
@@ -637,7 +654,7 @@ app.get('/adminSortTotalPriceDesc', (req,res) => {
         })
     }
     else {
-        var sql = `select * from transaction where username = '${username}'order by TotalPrice DESC;`;
+        var sql = `select * from transaction where username like '%${username}%'order by TotalPrice DESC;`;
         conn.query(sql, (err,results) => {
             if (err) throw err;
             res.send(results);
@@ -733,11 +750,11 @@ app.delete('/cart/:id', (req,res) => {
 
 
 app.post('/checkout', (req,res) => {
-    const { username, Address, Courier, TotalPrice, Status } = req.body;
+    const { username, Name, Address, Courier, TotalPrice, Status } = req.body;
     // var data = { username, Address, Courier, TotalPrice };
     var sql = `insert into transaction 
-                (username, Date, Time, Address, Courier, TotalPrice, Status)        
-                values ('${username}', (select CURDATE()), (select CURTIME()),'${Address}', '${Courier}', ${TotalPrice}, '${Status}');`;
+                (username, Date, Time, Name, Address, Courier, TotalPrice, Status)        
+                values ('${username}', (select CURDATE()), (select CURTIME()), '${Name}','${Address}', '${Courier}', ${TotalPrice}, '${Status}');`;
     conn.query(sql, (err,results) => {
         if (err) throw err;
         var sql1 = `select (select max(idTransaction) from transaction where username = '${username}') as idTransaction,
@@ -805,6 +822,23 @@ app.get('/userprofile/:username', (req,res) => {
     })
 })
 
+app.put('/uploadUserPhoto/:id', (req, res) => {
+    uploadProfile(req, res, (err) =>{
+        if(err) {
+            console.log(err);
+        }
+        else {
+            console.log(req.file);
+            res.send('Upload Photo Profile Success!');
+            var sql1 = `update userlist set photo = '${req.file.filename}' where id = ${req.params.id};`;
+            conn.query(sql1, (err1, results1) => {
+                if (err1) throw err1;
+                console.log(results1)
+            })
+        }
+    })
+})
+
 app.put('/updateprofile/:idUser', (req, res) => {
     const { username, address } = req.body;
     var data = { address }
@@ -819,6 +853,7 @@ app.put('/updateprofile/:idUser', (req, res) => {
         })
     })
 })
+
 
 
 // ======================================== Payment ===============================================================
@@ -842,7 +877,7 @@ app.post('/addNewInvoice/:id', (req, res) => {
 })
 
 app.get('/getInvoiceNumber/:id', (req, res) => {
-    var sql = `select i.*, t.Date, t.TotalPrice, t.Address, t.Courier, t.username from invoice i join transaction t 
+    var sql = `select i.*, t.Date, t.TotalPrice, t.Name, t.Address, t.Courier, t.username from invoice i join transaction t 
                 on i.idTransaction = t.idTransaction where i.idTransaction = ${req.params.id};`;
     conn.query(sql, (err, results) => {
         if (err) throw err;
@@ -878,7 +913,7 @@ app.put('/updatePaymentStatus/:id', (req, res) => {
     var sql = `update transaction set Status = '${Status}' where idTransaction = ${req.params.id};`;
     conn.query(sql, data, (err, results) => {
         if(err) throw err;
-        var sql1 = `select (@cnt := @cnt + 1) AS TransactionID, idTransaction, Date, Time, Address, Courier, TotalPrice, Status
+        var sql1 = `select (@cnt := @cnt + 1) AS TransactionID, idTransaction, Date, Time, Name, Address, Courier, TotalPrice, Status
                     from transaction JOIN (SELECT @cnt := 0) AS dummy
                     where username = '${username}';`;
         conn.query(sql1, (err1, results1) => {
